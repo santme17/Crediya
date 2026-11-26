@@ -1,45 +1,69 @@
 package co.com.bancolombia.api;
 
+import co.com.bancolombia.api.dto.CreateUserRequest;
+import co.com.bancolombia.api.dto.UserResponse;
+import co.com.bancolombia.api.mapper.UserRestMapper;
+import co.com.bancolombia.model.user.User;
+import co.com.bancolombia.usecase.user.UserUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.client.RestTestClient;
-import org.springframework.web.context.WebApplicationContext;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-@SpringBootTest(classes = TestConfig.class)
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
 class ApiRestTest {
 
-    @Autowired
-    private WebApplicationContext context;
+    @Mock
+    private UserUseCase userUseCase;
 
-    private RestTestClient client;
+    private ApiRest apiRest;
 
     @BeforeEach
-    void setup() {
-        client = RestTestClient.bindToApplicationContext(context).build();
+    void setUp() {
+        apiRest = new ApiRest(userUseCase, new UserRestMapper());
     }
 
     @Test
-    void shouldReturnValueFromUseCaseVersion1() {
-        client.get()
-                .uri("/api/usecase/path")
-                .accept(MediaType.APPLICATION_JSON)
-                .exchange()
-                .expectStatus().isOk()
-                .expectHeader().contentType(MediaType.APPLICATION_JSON)
-                .expectBody(String.class)
-                .isEqualTo("Value from use case v1");
-    }
+    void shouldReturnCreatedWhenRegisteringValidUser() {
+        CreateUserRequest request = CreateUserRequest.builder()
+                .nombres("Santiago")
+                .apellidos("Muñoz Estrada")
+                .fechaNacimiento(LocalDate.of(2000, 5, 15))
+                .direccion("Calle 10 # 20-30")
+                .telefono("3001234567")
+                .correoElectronico("santiago@correo.com")
+                .salarioBase(new BigDecimal("3500000"))
+                .build();
 
+        User savedUser = User.builder()
+                .id(1L)
+                .nombres("Santiago")
+                .apellidos("Muñoz Estrada")
+                .fechaNacimiento(LocalDate.of(2000, 5, 15))
+                .direccion("Calle 10 # 20-30")
+                .telefono("3001234567")
+                .correoElectronico("santiago@correo.com")
+                .salarioBase(new BigDecimal("3500000"))
+                .build();
 
-    @Test
-    void shouldReturnNotFoundForInvalidPath() {
-        client.get()
-                .uri("/api/usecase/invalid")
-                .accept(MediaType.APPLICATION_JSON)
-                .exchange()
-                .expectStatus().isNotFound();
+        when(userUseCase.registerUser(any(User.class))).thenReturn(savedUser);
+
+        ResponseEntity<UserResponse> response = apiRest.registerUser(request);
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1L, response.getBody().getId());
+        assertEquals("santiago@correo.com", response.getBody().getCorreoElectronico());
     }
 }
