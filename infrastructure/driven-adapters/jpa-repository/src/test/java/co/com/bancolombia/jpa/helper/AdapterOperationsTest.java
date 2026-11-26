@@ -2,6 +2,8 @@ package co.com.bancolombia.jpa.helper;
 
 import co.com.bancolombia.jpa.JPARepository;
 import co.com.bancolombia.jpa.JPARepositoryAdapter;
+import co.com.bancolombia.jpa.entity.UserEntity;
+import co.com.bancolombia.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -9,10 +11,12 @@ import org.mockito.MockitoAnnotations;
 import org.reactivecommons.utils.ObjectMapper;
 import org.springframework.data.domain.Example;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -25,74 +29,94 @@ class AdapterOperationsTest {
     private ObjectMapper objectMapper;
 
     private JPARepositoryAdapter adapter;
+    private User domainUser;
+    private UserEntity entityUser;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        when(objectMapper.map("value", Object.class)).thenReturn("value");
+        domainUser = User.builder()
+                .id(1L)
+                .nombres("Santiago")
+                .apellidos("Muñoz Estrada")
+                .correoElectronico("santiago@correo.com")
+                .salarioBase(new BigDecimal("3500000"))
+                .build();
+
+        entityUser = UserEntity.builder()
+                .id(1L)
+                .nombres("Santiago")
+                .apellidos("Muñoz Estrada")
+                .correoElectronico("santiago@correo.com")
+                .salarioBase(new BigDecimal("3500000"))
+                .build();
+
+        when(objectMapper.map(domainUser, UserEntity.class)).thenReturn(entityUser);
+        when(objectMapper.map(entityUser, User.class)).thenReturn(domainUser);
 
         adapter = new JPARepositoryAdapter(repository, objectMapper);
     }
 
     @Test
     void testSave() {
+        when(repository.save(entityUser)).thenReturn(entityUser);
 
-        Object objectValue = "value";
+        User result = adapter.save(domainUser);
 
-        when(repository.save(objectValue)).thenReturn(objectValue);
-
-        Object result = adapter.save(objectValue);
-
-        assertEquals(result, objectValue);
+        assertEquals(domainUser, result);
     }
 
     @Test
     void testSaveAllEntities() {
+        List<User> domainList = List.of(domainUser);
+        List<UserEntity> entityList = List.of(entityUser);
 
-        List<Object> objectValues = List.of("value", "value");
+        when(repository.saveAll(entityList)).thenReturn(entityList);
 
-        when(repository.saveAll(objectValues)).thenReturn(objectValues);
+        List<User> result = adapter.saveAllEntities(domainList);
 
-        Object result = adapter.saveAllEntities(objectValues);
-
-        assertEquals(result, objectValues);
+        assertEquals(domainList, result);
     }
 
     @Test
     void testFindById() {
+        when(repository.findById(1L)).thenReturn(Optional.of(entityUser));
 
-        Object objectValue = "value";
+        User result = adapter.findById(1L);
 
-        when(repository.findById("id")).thenReturn(Optional.of(objectValue));
-
-        Object result = adapter.findById("id");
-
-        assertEquals(result, objectValue);
+        assertEquals(domainUser, result);
     }
 
     @Test
     void testFindAll() {
+        List<User> domainList = List.of(domainUser);
+        List<UserEntity> entityList = List.of(entityUser);
 
-        List<Object> objectValues = List.of("value", "value");
+        when(repository.findAll()).thenReturn(entityList);
 
-        when(repository.findAll()).thenReturn(objectValues);
+        List<User> result = adapter.findAll();
 
-        Object result = adapter.findAll();
-
-        assertEquals(result, objectValues);
+        assertEquals(domainList, result);
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void testFindByExample() {
+        List<User> domainList = List.of(domainUser);
+        List<UserEntity> entityList = List.of(entityUser);
 
-        Object objectValue = "value";
-        List<Object> objectValues = List.of(objectValue, objectValue);
+        when(repository.findAll(any(Example.class))).thenReturn(entityList);
 
-        when(repository.findAll(any(Example.class))).thenReturn(objectValues);
+        List<User> result = adapter.findByExample(domainUser);
 
-        Object result = adapter.findByExample(objectValue);
+        assertEquals(domainList, result);
+    }
 
-        assertEquals(result, objectValues);
+    @Test
+    void testExistsByCorreoElectronico() {
+        when(repository.existsByCorreoElectronico("santiago@correo.com")).thenReturn(true);
+
+        assertTrue(adapter.existsByCorreoElectronico("santiago@correo.com"));
     }
 }
